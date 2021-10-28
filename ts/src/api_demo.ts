@@ -25,6 +25,7 @@ async function waitUntilUploadingDone(lokaliseApi, processId, projectId) {
 async function download(translationsUrl, archive) {
   try {
     const response = await got.get(translationsUrl).buffer()
+    // Perhaps, you might want to use fs-promises and writeFile instead (await/async version)
     fs.writeFileSync(archive, response)
   } catch (error) {
     console.log(error)
@@ -150,30 +151,33 @@ async function main() {
 
 
   // DOWNLOAD TRANSLATIONS
-  // console.log("Downloading translations...")
-  // const projectId = ""
+  console.log("Downloading translations...")
+  //const projectId = "84965476617a7b6c1462b1.26154086"
 
-  // const downloadResponse = await lokaliseApi.files().download(projectId, {
-  //   format: "json",
-  //   original_filenames: true,
-  //   directory_prefix: '',
-  //   filter_langs: ['fr'],
-  //   indentation: '2sp',
-  // })
+  const downloadResponse = await lokaliseApi.files().download(projectId, {
+    format: "json",
+    original_filenames: true,
+    directory_prefix: '',
+    filter_langs: ['fr'],
+    indentation: '2sp',
+  })
   
-  // const translationsUrl = downloadResponse.bundle_url
-  // const archive = path.resolve(i18nFolder, 'archive.zip')
+  // please note that the code below is only to demonstrate one approach
+  // AdmZip allows to extract archives on the fly (reading from buffer),
+  // so you mustn't download the archive locally
+  const translationsUrl = downloadResponse.bundle_url
+  const archive = path.resolve(i18nFolder, 'archive.zip')
 
-  // await download(translationsUrl, archive)
+  await download(translationsUrl, archive)
 
-  // // EXTRACT TRANSLATIONS FROM ARCHIVE
+  // EXTRACT TRANSLATIONS FROM ARCHIVE
 
-  // const zip = new AdmZip(archive)
-  // zip.extractAllTo(i18nFolder, true)
+  const zip = new AdmZip(archive)
+  zip.extractAllTo(i18nFolder, true)
 
-  // fs.unlink(archive, (err) => {
-  //   if (err) throw err
-  // })
+  fs.unlink(archive, (err) => {
+    if (err) throw err
+  })
 }
 
 

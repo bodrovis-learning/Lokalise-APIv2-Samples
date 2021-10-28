@@ -106,9 +106,9 @@ puts task.title
 
 
 # DOWNLOADING TRANSLATIONS
-# puts 'Downloading translations...'
+puts 'Downloading translations...'
 
-# importer = LokaliseManager.importer project_id: '5812150561782cfc34d058.67319047',
-#                                     import_opts: { filter_langs: ['fr'] }
+importer = LokaliseManager.importer project_id: '5812150561782cfc34d058.67319047',
+                                    import_opts: { filter_langs: ['fr'] }
 
-# importer.import!
+importer.import!
