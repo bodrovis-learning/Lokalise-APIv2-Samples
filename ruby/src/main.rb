@@ -78,7 +78,7 @@ def uploaded?(process)
   false # if all 5 checks failed, return false (probably something is wrong)
 end
 
-uploaded? processes.first
+uploaded? processes.first.process
 
 
 # LIST TRANSLATION KEYS
