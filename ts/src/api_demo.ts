@@ -1,69 +1,39 @@
-require("dotenv").config()
+import "dotenv/config";
 
-const { LokaliseApi } = require('@lokalise/node-api')
-const fs = require('fs')
-const path = require('path')
-const AdmZip = require("adm-zip")
-const got = require('got')
-
-async function waitUntilUploadingDone(lokaliseApi, processId, projectId) {
-  return await new Promise(resolve => {
-    const interval = setInterval(async () => {
-      const reloadedProcess = await lokaliseApi.queuedProcesses().get(processId, {
-        project_id: projectId,
-      })
-  
-      if (reloadedProcess.status === 'finished') {
-        resolve(reloadedProcess.status)
-        clearInterval(interval)
-      }
-    }, 1000)
-  })
-}
-
-
-async function download(translationsUrl, archive) {
-  try {
-    const response = await got.get(translationsUrl).buffer()
-    // Perhaps, you might want to use fs-promises and writeFile instead (await/async version)
-    fs.writeFileSync(archive, response)
-  } catch (error) {
-    console.log(error)
-  }
-}
-
+import fs from "fs/promises";
+import path from "path";
+import { fileURLToPath } from "url";
+import { LokaliseApi } from "@lokalise/node-api";
+import AdmZip from "adm-zip";
 
 async function main() {
-  const i18nFolder = path.resolve(__dirname, 'i18n')
+  const lokaliseApi = new LokaliseApi({ apiKey: process.env.API_KEY });
 
-  // INITIALIZE API CLIENT
-  const lokaliseApi = new LokaliseApi({ apiKey: process.env.API_KEY })
-
-
-  // CREATE PROJECT
-  console.log("Creating project...")
+  console.log("Creating project...");
 
   const project = await lokaliseApi.projects().create({
     name: "Node.js Sample Project",
     description: "Here's my Node.js project",
     languages: [
       {
-          "lang_iso": "en"
+        lang_iso: "en",
       },
       {
-          "lang_iso": "fr"
-      }
+        lang_iso: "fr",
+      },
     ],
-    "base_lang_iso": "en"
-  })
+    base_lang_iso: "en",
+  });
 
-  const projectId = project.project_id
-  console.log(projectId)
-  console.log(project.name)
+  const projectId = project.project_id;
 
+  console.log(projectId);
+  console.log(project.name);
 
-  // INVITE CONTRIBUTORS
-  console.log("Inviting contributors...")
+  // // If needed, provide the project ID manually:
+  // const projectId = "41927157619e6abd190863.11993227";
+
+  console.log("Inviting contributors...");
 
   const contributors = await lokaliseApi.contributors().create(
     [
@@ -84,53 +54,44 @@ async function main() {
         ],
       },
     ],
-    { project_id: projectId }
-  )
+    { project_id: projectId },
+  );
 
-  console.log(contributors[0].email)
-  console.log(contributors[0].user_id)
+  console.log(contributors[0].email);
+  console.log(contributors[0].user_id);
 
+  console.log("Uploading translations...");
 
-  // UPLOAD TRANSLATION FILE
-  console.log("Uploading translations...")
-
-  const i18nFile = path.join(i18nFolder, 'en.json')
-
-  const data = fs.readFileSync(i18nFile, 'utf8')
-
-  const buff = Buffer.from(data, 'utf8')
-
-  const base64I18n = buff.toString('base64')
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = path.dirname(__filename);
+  const i18nFolder = path.resolve(__dirname, "i18n");
+  const i18nFile = path.join(i18nFolder, "en.json");
+  const data = await fs.readFile(i18nFile, "utf8");
+  const buff = Buffer.from(data, "utf8");
+  const base64I18n = buff.toString("base64");
 
   const bgProcess = await lokaliseApi.files().upload(projectId, {
     data: base64I18n,
     filename: "en.json",
     lang_iso: "en",
-  })
+  });
 
-  console.log("Updating process status...")
+  console.log("Updating process status...");
 
-  await waitUntilUploadingDone(lokaliseApi, bgProcess.process_id, projectId)
+  await waitUntilUploadingDone(lokaliseApi, bgProcess.process_id, projectId);
 
-  console.log("Uploading is done!")
+  console.log("Uploading is done!");
 
-
-  // LIST TRANSLATION KEYS
-  console.log("Getting created translation keys...")
+  console.log("Getting created translation keys...");
 
   const keys = await lokaliseApi.keys().list({
-    project_id: projectId
-  })
+    project_id: projectId,
+  });
+  const keyIds = keys.items.map((currentValue) => currentValue.key_id);
 
-  const keyIds = keys.items.map(function(currentValue) {
-    return currentValue.key_id
-  })
+  console.log(keyIds);
 
-  console.log(keyIds)
-
-
-  // ASSIGNING TASKS
-  console.log("Assinging a translation task...")
+  console.log("Assinging a translation task...");
 
   const task = await lokaliseApi.tasks().create(
     {
@@ -143,47 +104,63 @@ async function main() {
         },
       ],
     },
-    { project_id: projectId }
-  )
+    { project_id: projectId },
+  );
 
-  console.log(task.title)
-  console.log(task.languages[0].language_iso)
+  console.log(task.title);
+  console.log(task.languages[0].language_iso);
 
-
-  // DOWNLOAD TRANSLATIONS
-  console.log("Downloading translations...")
-  //const projectId = "84965476617a7b6c1462b1.26154086"
+  console.log("Downloading translations...");
 
   const downloadResponse = await lokaliseApi.files().download(projectId, {
     format: "json",
     original_filenames: true,
-    directory_prefix: '',
-    filter_langs: ['fr'],
-    indentation: '2sp',
-  })
-  
-  // please note that the code below is only to demonstrate one approach
-  // AdmZip allows to extract archives on the fly (reading from buffer),
-  // so you mustn't download the archive locally
-  const translationsUrl = downloadResponse.bundle_url
-  const archive = path.resolve(i18nFolder, 'archive.zip')
-
-  await download(translationsUrl, archive)
-
-  // EXTRACT TRANSLATIONS FROM ARCHIVE
-
-  const zip = new AdmZip(archive)
-  zip.extractAllTo(i18nFolder, true)
-
-  fs.unlink(archive, (err) => {
-    if (err) throw err
-  })
+    directory_prefix: "",
+    filter_langs: ["fr"],
+    indentation: "2sp",
+  });
+  const translationsUrl = downloadResponse.bundle_url;
+  const zip = new AdmZip(await zipBuffer(translationsUrl));
+  zip.extractAllTo(i18nFolder, true);
 }
 
+async function zipBuffer(translationsUrl: string): Promise<Buffer> {
+	const response = await fetch(translationsUrl);
+	const arrayBuffer = await response.arrayBuffer();
+
+	return Buffer.from(new Uint8Array(arrayBuffer));
+}
+
+async function waitUntilUploadingDone(
+	lokaliseApi: LokaliseApi,
+	processId: string,
+	projectId: string,
+): Promise<string> {
+	return new Promise<string>((resolve, reject) => {
+		const interval = setInterval(async () => {
+			try {
+				const reloadedProcess = await lokaliseApi
+					.queuedProcesses()
+					.get(processId, {
+						project_id: projectId,
+					});
+
+				if (reloadedProcess.status === "finished") {
+					clearInterval(interval);
+					resolve(reloadedProcess.status);
+				}
+			} catch (error) {
+				clearInterval(interval);
+				console.error("An error occurred:", error);
+				reject("error");
+			}
+		}, 1000);
+	});
+}
 
 main()
-  .then(() => process.exit(0))
-  .catch((error) => {
-    console.error(error)
-    process.exit(1)
-  })
+	.then(() => process.exit(0))
+	.catch((error) => {
+		console.error(error);
+		process.exit(1);
+	});

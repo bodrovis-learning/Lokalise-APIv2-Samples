@@ -2,17 +2,17 @@
 
 require 'dotenv/load'
 require 'lokalise_manager'
-require 'ruby-lokalise-api'
+require 'ruby_lokalise_api'
 
 # GLOBAL OPTS
 LokaliseManager::GlobalConfig.config do |c|
-  c.api_token = ENV['API_KEY']
+  c.api_token = ENV.fetch('API_KEY', nil)
   c.locales_path = "#{Dir.getwd}/src/i18n"
 end
 
 
 # CREATING CLIENT
-@client = Lokalise.client ENV['API_KEY']
+@client = RubyLokaliseApi.client ENV.fetch('API_KEY', nil)
 
 
 # CREATING PROJECT
@@ -59,11 +59,13 @@ contributor = contributors.collection.first
 puts contributor.fullname
 puts contributor.user_id
 
+# Add project ID manually if needed
+# project_id = '803826145ba90b42d5d860.46800099'
 
 # UPLOADING TRANSLATIONS
 puts 'Uploading translations...'
 
-exporter = LokaliseManager.exporter project_id: project_id
+exporter = LokaliseManager.exporter(project_id:)
 
 processes = exporter.export!
 
@@ -89,7 +91,7 @@ key_ids = @client.keys(project_id).collection.map(&:key_id)
 puts key_ids
 
 
-# ASSIGNING TRANSLATION TASk
+# # ASSIGNING TRANSLATION TASk
 puts 'Assigning translation task...'
 
 task = @client.create_task project_id,
@@ -108,7 +110,7 @@ puts task.title
 # DOWNLOADING TRANSLATIONS
 puts 'Downloading translations...'
 
-importer = LokaliseManager.importer project_id: '5812150561782cfc34d058.67319047',
-                                    import_opts: { filter_langs: ['fr'] }
+importer = LokaliseManager.importer project_id:,
+                                    import_opts: {filter_langs: ['fr']}
 
 importer.import!
